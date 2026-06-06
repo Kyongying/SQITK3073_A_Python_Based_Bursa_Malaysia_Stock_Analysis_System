@@ -1,15 +1,12 @@
 from __future__ import annotations
-
 from datetime import date, timedelta
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 import yfinance as yf
 from curl_cffi import requests
 
-
-# Predefined Bursa Malaysia stock universe for the sidebar multiselect.
+# sidebar
 BURSA_STOCKS: dict[str, str] = {
     "1155.KL": "Malayan Banking Berhad",
     "1023.KL": "CIMB Group Holdings Berhad",
@@ -37,21 +34,17 @@ PERIOD_OPTIONS: dict[str, int] = {
     "1 year": 365,
 }
 
-
 def get_analysis_period(period_label: str) -> tuple[date, date]:
     """Convert the selected period into a Yahoo Finance date range."""
     end_date = date.today()
     start_date = end_date - timedelta(days=PERIOD_OPTIONS[period_label])
     return start_date, end_date
 
-
 @st.cache_data(show_spinner=False)
 def retrieve_stock_data(tickers: tuple[str, ...], start_date: date, end_date: date) -> pd.DataFrame:
     """Retrieve historical closing prices from Yahoo Finance using yfinance."""
     yahoo_session = requests.Session(impersonate="chrome")
 
-    # Some local university/workspace environments miss the certificate chain used by Yahoo.
-    # Disabling verification here keeps the dashboard usable for the assignment environment.
     yahoo_session.verify = False
 
     try:
@@ -70,7 +63,7 @@ def retrieve_stock_data(tickers: tuple[str, ...], start_date: date, end_date: da
     if data.empty:
         return pd.DataFrame()
 
-    # yfinance returns MultiIndex columns when multiple stocks are downloaded.
+    # returns multiindez columns
     if isinstance(data.columns, pd.MultiIndex):
         close_prices = data["Close"].copy()
     else:
@@ -80,7 +73,6 @@ def retrieve_stock_data(tickers: tuple[str, ...], start_date: date, end_date: da
     close_prices = close_prices.dropna(how="all")
     return close_prices
 
-
 def classify_performance(return_percentage: float) -> str:
     """Classify stock performance using the assignment rules."""
     if return_percentage < 0:
@@ -88,7 +80,6 @@ def classify_performance(return_percentage: float) -> str:
     if return_percentage <= 2:
         return "Moderate Return"
     return "High Return"
-
 
 def calculate_stock_analysis(close_prices: pd.DataFrame, investment_amount: float) -> pd.DataFrame:
     """Calculate daily return, estimated return, and return percentage for each stock."""
@@ -103,7 +94,6 @@ def calculate_stock_analysis(close_prices: pd.DataFrame, investment_amount: floa
         today_close = float(stock_series.iloc[-1])
         daily_return = today_close - yesterday_close
 
-        # Assignment formula: Shares Purchasable = Investment Amount / Yesterday Closing Price.
         shares_purchasable = investment_amount / yesterday_close
         estimated_total_return = daily_return * shares_purchasable
         return_percentage = (estimated_total_return / investment_amount) * 100
@@ -123,7 +113,6 @@ def calculate_stock_analysis(close_prices: pd.DataFrame, investment_amount: floa
 
     return pd.DataFrame(rows)
 
-
 def create_portfolio_summary(stock_analysis: pd.DataFrame) -> pd.DataFrame:
     """Use pandas column selection/slicing to create the required summary table."""
     return stock_analysis.loc[
@@ -137,11 +126,9 @@ def create_portfolio_summary(stock_analysis: pd.DataFrame) -> pd.DataFrame:
         ],
     ]
 
-
 def create_performance_classification(stock_analysis: pd.DataFrame) -> pd.DataFrame:
     """Return the required performance classification display columns."""
     return stock_analysis.loc[:, ["Ticker", "Return Percentage", "Performance Category"]]
-
 
 def create_groupby_summary(stock_analysis: pd.DataFrame) -> pd.DataFrame:
     """Use pandas groupby() to calculate average estimated return by category."""
@@ -150,7 +137,6 @@ def create_groupby_summary(stock_analysis: pd.DataFrame) -> pd.DataFrame:
         .mean()
         .rename(columns={"Estimated Total Return": "Average Estimated Total Return"})
     )
-
 
 def generate_closing_price_chart(close_prices: pd.DataFrame) -> plt.Figure:
     """Create Chart 1: Closing Price Trend."""
@@ -168,7 +154,6 @@ def generate_closing_price_chart(close_prices: pd.DataFrame) -> plt.Figure:
     fig.tight_layout()
     return fig
 
-
 def generate_portfolio_performance_chart(stock_analysis: pd.DataFrame) -> plt.Figure:
     """Create Chart 2: Portfolio Performance Comparison."""
     sorted_df = stock_analysis.sort_values("Return Percentage", ascending=False)
@@ -184,7 +169,6 @@ def generate_portfolio_performance_chart(stock_analysis: pd.DataFrame) -> plt.Fi
     fig.tight_layout()
     return fig
 
-
 def calculate_portfolio_insights(stock_analysis: pd.DataFrame) -> dict[str, float | str]:
     """Calculate automatic portfolio insight values for the dashboard."""
     best_row = stock_analysis.loc[stock_analysis["Return Percentage"].idxmax()]
@@ -199,7 +183,6 @@ def calculate_portfolio_insights(stock_analysis: pd.DataFrame) -> dict[str, floa
         "Total Portfolio Profit/Loss": float(stock_analysis["Estimated Total Return"].sum()),
     }
 
-
 def display_formatted_dataframe(df: pd.DataFrame) -> None:
     """Apply consistent formatting before displaying tables."""
     format_rules = {
@@ -213,7 +196,6 @@ def display_formatted_dataframe(df: pd.DataFrame) -> None:
     }
     active_rules = {column: rule for column, rule in format_rules.items() if column in df.columns}
     st.dataframe(df.style.format(active_rules), use_container_width=True)
-
 
 def main() -> None:
     st.set_page_config(page_title="Bursa Malaysia Stock Analysis Dashboard", layout="wide")
@@ -338,7 +320,6 @@ def main() -> None:
     insight_b.write(f"**Worst Performing Stock:** {insights['Worst Performing Stock']}")
     insight_b.write(f"**Lowest Return Percentage:** {insights['Lowest Return Percentage']:.2f}%")
     insight_b.write(f"**Total Portfolio Profit/Loss:** RM {insights['Total Portfolio Profit/Loss']:,.2f}")
-
 
 if __name__ == "__main__":
     main()
